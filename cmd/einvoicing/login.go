@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/JustSteveKing/einvoicing-cli/internal/altcha"
-	"github.com/JustSteveKing/einvoicing-cli/internal/api"
 	"github.com/JustSteveKing/einvoicing-cli/internal/credentials"
+	einvoicing "github.com/JustSteveKing/einvoicing-go"
 	"github.com/spf13/cobra"
 )
 
@@ -98,13 +98,13 @@ directory, readable only by you.`,
 }
 
 // confirm asks for the code until it is accepted or the attempts run out.
-func (a *app) confirm(ctx context.Context, client *api.Client, signIn api.SignIn, keyName, mode string) (api.SignInResult, error) {
+func (a *app) confirm(ctx context.Context, client *einvoicing.Client, signIn einvoicing.SignIn, keyName, mode string) (einvoicing.SignInResult, error) {
 	fmt.Fprintf(a.stderr, "A six-digit code was sent to %s. It expires in 10 minutes.\n", signIn.Email)
 
 	for {
 		code, err := a.prompt("Code: ")
 		if err != nil {
-			return api.SignInResult{}, err
+			return einvoicing.SignInResult{}, err
 		}
 
 		result, err := client.ConfirmSignIn(ctx, signIn.ID, code, keyName, mode)
@@ -112,20 +112,20 @@ func (a *app) confirm(ctx context.Context, client *api.Client, signIn api.SignIn
 			return result, nil
 		}
 
-		var problem *api.Problem
+		var problem *einvoicing.Problem
 		if !errors.As(err, &problem) {
-			return api.SignInResult{}, err
+			return einvoicing.SignInResult{}, err
 		}
 
 		switch {
-		case problem.IsType("invalid-code") && problem.AttemptsRemaining != nil && *problem.AttemptsRemaining > 0:
+		case problem.Slug() == "invalid-code" && problem.AttemptsRemaining != nil && *problem.AttemptsRemaining > 0:
 			fmt.Fprintf(a.stderr, "That code is not right. %d attempts remain.\n", *problem.AttemptsRemaining)
-		case problem.IsType("invalid-request"):
+		case problem.Slug() == "invalid-request":
 			fmt.Fprintln(a.stderr, "Enter the six digits from the email.")
-		case problem.IsType("invalid-code"), problem.IsType("sign-in-expired"):
-			return api.SignInResult{}, errors.New("this sign-in can no longer be used; run 'einvoicing login' again for a new code")
+		case problem.Slug() == "invalid-code", problem.Slug() == "sign-in-expired":
+			return einvoicing.SignInResult{}, errors.New("this sign-in can no longer be used; run 'einvoicing login' again for a new code")
 		default:
-			return api.SignInResult{}, err
+			return einvoicing.SignInResult{}, err
 		}
 	}
 }

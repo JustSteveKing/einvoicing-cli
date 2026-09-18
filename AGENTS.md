@@ -16,14 +16,18 @@ Go 1.27. The only dependency is cobra, and that is deliberate.
 
 ```
 internal/altcha        ALTCHA v2 solver (PBKDF2), for sign-in
-internal/api           client for openapi.yaml; errors are *api.Problem (RFC 9457)
 internal/credentials   the saved key: 0600 file, atomic writes, EINVOICING_API_KEY overrides
 cmd/einvoicing         cobra commands
 ```
 
-The API contract is `openapi.yaml` in the shared `einvoicing.dev` repo. The
-client covers exactly its operations, and the types in `internal/api`
-mirror its schemas.
+The API client is `github.com/JustSteveKing/einvoicing-go`, which started
+life here as `internal/api` and was promoted so the CLI and everyone else
+share one implementation. Errors from it are `*einvoicing.Problem`, and the
+contract both follow is `openapi.yaml` in the shared `einvoicing.dev` repo.
+
+Changes to the client belong in the SDK repository, not here. If a command
+needs something the SDK does not expose, add it there and bump the
+dependency; do not reach around it with a hand-rolled request.
 
 ## Decisions worth not relitigating
 
@@ -37,7 +41,13 @@ correct solution. So `altcha.Solve` takes and returns the raw JSON.
 the library the API uses.
 
 **Amounts are strings.** The API sends decimals as strings, and the CLI never
-does arithmetic on money.
+does arithmetic on money. That rule now lives in the SDK's types, which is
+the better place for it.
+
+**The solver stays here.** `SignInChallenge` returns the raw JSON and the SDK
+deliberately does not solve it: solving is a CLI concern, and a library that
+pulled in a PBKDF2 loop for everyone would be paying for a feature almost
+nobody uses.
 
 **Exit 1 means "the answer is no", exit 2 means "it broke".** CI needs to
 tell an invalid invoice from a broken pipeline.

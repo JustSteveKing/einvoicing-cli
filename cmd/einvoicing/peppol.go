@@ -8,7 +8,7 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/JustSteveKing/einvoicing-cli/internal/api"
+	einvoicing "github.com/JustSteveKing/einvoicing-go"
 	"github.com/spf13/cobra"
 )
 
@@ -94,11 +94,11 @@ explained. Exits 1 when the document is invalid, so it can gate CI.`,
 			if err != nil {
 				return err
 			}
-			client, err := a.client()
+			client, err := a.client(einvoicing.WithRuleset(ruleset))
 			if err != nil {
 				return err
 			}
-			report, err := client.Validate(cmd.Context(), document, ruleset)
+			report, err := client.Validate(cmd.Context(), document)
 			if err != nil {
 				return err
 			}
@@ -121,7 +121,7 @@ explained. Exits 1 when the document is invalid, so it can gate CI.`,
 	return cmd
 }
 
-func (a *app) printReport(report api.ValidationReport) {
+func (a *app) printReport(report einvoicing.ValidationReport) {
 	verdict := "valid"
 	if !report.Valid {
 		verdict = "INVALID"
@@ -131,7 +131,7 @@ func (a *app) printReport(report api.ValidationReport) {
 	a.printFindings(report.Findings)
 }
 
-func (a *app) printFindings(findings []api.Finding) {
+func (a *app) printFindings(findings []einvoicing.Finding) {
 	for _, f := range findings {
 		fmt.Fprintf(a.stdout, "\n%s %s [%s]\n  %s\n", f.Severity, f.RuleID, f.Layer, f.Message)
 		if f.Location.Path != nil {
@@ -172,9 +172,9 @@ validates; otherwise every problem is listed and the command exits 1.`,
 				return err
 			}
 
-			conversion, err := client.Convert(cmd.Context(), request)
-			var problem *api.Problem
-			if errors.As(err, &problem) && problem.IsType("invalid-invoice") {
+			conversion, err := client.Convert(cmd.Context(), json.RawMessage(request))
+			var problem *einvoicing.Problem
+			if errors.As(err, &problem) && errors.Is(err, einvoicing.ErrInvalidInvoice) {
 				fmt.Fprintf(a.stdout, "The invoice cannot produce a valid Peppol document (%d problems):\n", len(problem.Findings))
 				a.printFindings(problem.Findings)
 				return errGate

@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/JustSteveKing/einvoicing-cli/internal/api"
 	"github.com/JustSteveKing/einvoicing-cli/internal/credentials"
+	einvoicing "github.com/JustSteveKing/einvoicing-go"
 	"github.com/spf13/cobra"
 )
 
@@ -43,7 +43,7 @@ Exit codes: 0 success, 1 the document is invalid or cannot be converted,
 		SilenceErrors: true,
 	}
 
-	root.PersistentFlags().StringVar(&a.apiURL, "api-url", "", "API base URL (default: $EINVOICING_API_URL, the saved one, or "+api.DefaultBaseURL+")")
+	root.PersistentFlags().StringVar(&a.apiURL, "api-url", "", "API base URL (default: $EINVOICING_API_URL, the saved one, or "+einvoicing.DefaultBaseURL+")")
 	root.PersistentFlags().BoolVar(&a.jsonOut, "json", false, "print the API's JSON instead of a summary")
 
 	root.AddCommand(
@@ -75,16 +75,25 @@ func (a *app) baseURL() string {
 	if creds, err := credentials.Load(); err == nil && creds.APIURL != "" {
 		return creds.APIURL
 	}
-	return api.DefaultBaseURL
+	return einvoicing.DefaultBaseURL
 }
 
 // client without a key, for signing in.
-func (a *app) anonymousClient() *api.Client {
-	return api.New(a.baseURL(), "", "einvoicing-cli/"+version)
+func (a *app) anonymousClient() *einvoicing.Client {
+	return einvoicing.New("", a.options()...)
+}
+
+// options every client gets: where to talk to, and who is talking.
+func (a *app) options(extra ...einvoicing.Option) []einvoicing.Option {
+	return append([]einvoicing.Option{
+		einvoicing.WithBaseURL(a.baseURL()),
+		einvoicing.WithUserAgent("einvoicing-cli/" + version),
+	}, extra...)
 }
 
 // client with the key from EINVOICING_API_KEY or the saved credentials.
-func (a *app) client() (*api.Client, error) {
+// Extra options are for things a single command decides, such as --ruleset.
+func (a *app) client(extra ...einvoicing.Option) (*einvoicing.Client, error) {
 	key := os.Getenv("EINVOICING_API_KEY")
 	if key == "" {
 		creds, err := credentials.Load()
@@ -96,7 +105,7 @@ func (a *app) client() (*api.Client, error) {
 	if key == "" {
 		return nil, errors.New("not signed in: run 'einvoicing login', or set EINVOICING_API_KEY")
 	}
-	return api.New(a.baseURL(), key, "einvoicing-cli/"+version), nil
+	return einvoicing.New(key, a.options(extra...)...), nil
 }
 
 func (a *app) prompt(label string) (string, error) {
@@ -108,7 +117,7 @@ func (a *app) prompt(label string) (string, error) {
 	return strings.TrimSpace(line), nil
 }
 
-func (a *app) printProblem(p *api.Problem) {
+func (a *app) printProblem(p *einvoicing.Problem) {
 	fmt.Fprintf(a.stderr, "error: %s\n", p.Title)
 	if p.Detail != "" {
 		fmt.Fprintf(a.stderr, "  %s\n", p.Detail)
@@ -118,7 +127,7 @@ func (a *app) printProblem(p *api.Problem) {
 			fmt.Fprintf(a.stderr, "  %s: %s\n", field, message)
 		}
 	}
-	if p.RetryAfter != "" {
-		fmt.Fprintf(a.stderr, "  Retry after %s seconds.\n", p.RetryAfter)
+	if seconds := p.RetryAfter(); seconds > 0 {
+		fmt.Fprintf(a.stderr, "  Retry after %d seconds.\n", seconds)
 	}
 }

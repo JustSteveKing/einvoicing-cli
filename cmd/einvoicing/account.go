@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/JustSteveKing/einvoicing-cli/internal/api"
 	"github.com/JustSteveKing/einvoicing-cli/internal/credentials"
+	einvoicing "github.com/JustSteveKing/einvoicing-go"
 	"github.com/spf13/cobra"
 )
 
@@ -60,7 +60,7 @@ func newUsageCmd(a *app) *cobra.Command {
 	}
 }
 
-func printMeter(a *app, name string, m api.Meter) {
+func printMeter(a *app, name string, m einvoicing.Meter) {
 	line := fmt.Sprintf("  %-10s %d of %d", name, m.Used, m.Included)
 	if m.Overage > 0 {
 		line += fmt.Sprintf(" (%d over, billed at the plan's overage rate)", m.Overage)

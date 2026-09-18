@@ -12,7 +12,7 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/JustSteveKing/einvoicing-cli/internal/api"
+	einvoicing "github.com/JustSteveKing/einvoicing-go"
 )
 
 // version is stamped at build time with -ldflags "-X main.version=...".
@@ -58,7 +58,7 @@ func (a *app) run(args []string) int {
 	case errors.Is(err, errGate):
 		return exitGate
 	default:
-		var problem *api.Problem
+		var problem *einvoicing.Problem
 		if errors.As(err, &problem) {
 			a.printProblem(problem)
 		} else {

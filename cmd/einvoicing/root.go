@@ -60,6 +60,7 @@ Exit codes: 0 success, 1 the document is invalid or cannot be converted,
 		newBillingCmd(a),
 	)
 
+	addCompletionInstall(root)
 	return root
 }
 

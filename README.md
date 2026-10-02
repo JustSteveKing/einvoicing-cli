@@ -50,3 +50,17 @@ Add `--json` to any command to get the API's JSON instead of a summary.
 
 Peppol is a trademark of OpenPeppol AISBL. einvoicing.dev is independent and
 not affiliated with or endorsed by OpenPeppol.
+
+## Tab completion
+
+```bash
+einvoicing completion install
+```
+
+It works out your shell from `$SHELL` (or name it: `bash`, `zsh`, `fish`)
+and writes the script where that shell loads completions from, so there is
+nothing to source by hand. bash needs bash-completion installed. For zsh it
+checks the folder is on your `fpath` and prints the lines to add to
+`~/.zshrc` if not, or adds them with `--yes`. `einvoicing completion uninstall`
+removes it.
+
